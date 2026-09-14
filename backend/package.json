@@ -1,8 +1,11 @@
 {
   "name": "lab-ilkom-backend",
   "version": "1.0.0",
-  "description": "Backend API for LAB ILKOM Management & Booking System",
+  "description": "Backend API for LAB TI Polinema Management & Booking System",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",

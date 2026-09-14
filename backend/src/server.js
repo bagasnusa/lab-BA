@@ -33,11 +33,14 @@ app.use('/api/stats', statsRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
+  const dbLabel = process.env.NODE_ENV === 'production'
+    ? 'TiDB Cloud (Production)'
+    : 'MySQL Laragon (Local)';
   res.json({
     status: 'OK',
-    database: db.isConnected ? 'MySQL (Laragon Connected)' : 'Fallback (JSON)',
+    database: db.isConnected ? `${dbLabel} Connected` : 'Fallback (JSON)',
     timestamp: new Date().toISOString(),
-    service: 'LAB ILKOM Backend Service'
+    service: 'LAB TI Polinema Backend Service'
   });
 });
 

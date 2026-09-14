@@ -1,53 +1,58 @@
 const MahasiswaDashboard = {
   async render() {
-    const user = Api.getUser() || { name: 'Bagas Pratama', nim: '22051204001', jurusan: 'Teknik Informatika' };
-    let myBookings = [];
+    const user = Api.getUser() || {
+      name: 'Bagas Pratama',
+      nim: '22051204001',
+      jurusan: 'Teknik Informatika',
+      avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?auto=format&fit=crop&w=200&q=80'
+    };
 
+    let myBookings = [];
     try {
       const res = await Api.bookings.getAll({ userId: user.id });
       myBookings = res.data || [];
     } catch (e) {
-      console.error('Error loading mahasiswa dashboard data:', e);
+      console.warn('Failed to load my bookings:', e);
     }
 
-    const activeBooking = myBookings.find(b => ['disetujui_admin', 'sedang_berlangsung', 'menunggu_admin', 'menunggu_dosen'].includes(b.status)) || myBookings[0] || null;
+    // Determine active booking (first non-completed or latest)
+    const activeBooking = myBookings.find(b => ['disetujui_admin', 'sedang_berlangsung', 'menunggu_admin', 'menunggu_dosen'].includes(b.status)) || myBookings[0];
 
-    let ticketSectionHtml = '';
+    // Stepper active states
+    let statusStep1 = 'bg-emerald-500 text-white';
+    let statusStep2 = 'bg-slate-200 text-slate-500';
+    let statusStep3 = 'bg-slate-200 text-slate-500';
+    let statusStep4 = 'bg-slate-200 text-slate-500';
 
     if (activeBooking) {
-      let statusStep1 = 'bg-emerald-500 text-white';
-      let statusStep2 = 'bg-slate-200 text-slate-500';
-      let statusStep3 = 'bg-slate-200 text-slate-500';
-      let statusStep4 = 'bg-slate-200 text-slate-500';
-
-      if (activeBooking.status === 'menunggu_dosen') {
-        statusStep2 = 'bg-amber-500 text-white animate-pulse';
-      } else if (activeBooking.status === 'menunggu_admin') {
+      if (['menunggu_admin', 'disetujui_admin', 'sedang_berlangsung', 'selesai'].includes(activeBooking.status)) {
         statusStep2 = 'bg-emerald-500 text-white';
-        statusStep3 = 'bg-sky-500 text-white animate-pulse';
-      } else if (activeBooking.status === 'disetujui_admin') {
-        statusStep2 = 'bg-emerald-500 text-white';
+      }
+      if (['disetujui_admin', 'sedang_berlangsung', 'selesai'].includes(activeBooking.status)) {
         statusStep3 = 'bg-emerald-500 text-white';
-        statusStep4 = 'bg-sky-600 text-white animate-pulse';
-      } else if (activeBooking.status === 'sedang_berlangsung') {
-        statusStep2 = 'bg-emerald-500 text-white';
-        statusStep3 = 'bg-emerald-500 text-white';
+      }
+      if (['sedang_berlangsung', 'selesai'].includes(activeBooking.status)) {
         statusStep4 = 'bg-emerald-500 text-white';
       }
+    }
 
+    let ticketSectionHtml = '';
+    if (activeBooking) {
       ticketSectionHtml = `
-        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          <!-- Timeline Tracker Card (5 cols) -->
-          <div class="lg:col-span-5 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div>
-              <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold text-sm text-slate-900">Status Proses Izin Lab</h3>
-                <span class="font-mono text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">${activeBooking.bookingCode || activeBooking.id}</span>
-              </div>
+          <!-- Tracking Timeline Stepper (5 cols - Figma Screen 7 Left) -->
+          <div class="lg:col-span-5 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+              <h3 class="font-bold text-slate-900 text-base">Status Proses Izin Lab</h3>
+              <span class="text-xs font-mono font-bold text-sky-600">${activeBooking.bookingCode || activeBooking.id}</span>
+            </div>
 
-              <!-- Steps -->
-              <div class="space-y-4 relative pl-3 border-l-2 border-slate-100 ml-3 text-xs">
+            <!-- Stepper List -->
+            <div class="relative pl-6">
+              <div class="absolute left-3 top-2 bottom-2 w-0.5 bg-slate-200"></div>
+
+              <div class="space-y-6 text-xs">
                 
                 <div class="relative pl-5">
                   <div class="absolute -left-[19px] top-0 w-6 h-6 rounded-full ${statusStep1} flex items-center justify-center font-bold text-[10px]">1</div>
@@ -70,7 +75,7 @@ const MahasiswaDashboard = {
                 <div class="relative pl-5">
                   <div class="absolute -left-[19px] top-0 w-6 h-6 rounded-full ${statusStep4} flex items-center justify-center font-bold text-[10px]">4</div>
                   <div class="font-bold text-slate-800">Check-in & Masuk Lab</div>
-                  <p class="text-[11px] text-slate-500">Tunjukkan QR E-Ticket di meja Laboran</p>
+                  <p class="text-[11px] text-slate-500">Sebutkan Kode Booking di meja Laboran</p>
                 </div>
 
               </div>
@@ -82,7 +87,7 @@ const MahasiswaDashboard = {
             </div>
           </div>
 
-          <!-- Digital E-Ticket Card (7 cols - Figma Screen 7 Showcase) -->
+          <!-- Digital Booking Card (7 cols - Figma Screen 7 Showcase) -->
           <div class="lg:col-span-7 bg-gradient-to-br from-slate-900 to-slate-950 text-white p-6 sm:p-7 rounded-3xl shadow-xl flex flex-col justify-between relative overflow-hidden border border-slate-800">
             
             <div class="absolute -right-12 -top-12 w-48 h-48 bg-sky-500/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -128,14 +133,19 @@ const MahasiswaDashboard = {
                   </div>
                 </div>
 
-                <!-- Right QR Code (5 cols) -->
-                <div class="sm:col-span-5 flex flex-col items-center justify-center p-3 bg-white text-slate-900 rounded-2xl shadow-md">
-                  <div id="mhs-qr-preview" class="w-28 h-28 flex items-center justify-center">
-                    <!-- QR inserted dynamically -->
+                <!-- Right Kode Booking Box (5 cols) -->
+                <div class="sm:col-span-5 flex flex-col items-center justify-center p-4 bg-slate-800/90 border border-slate-700/90 rounded-2xl shadow-inner text-center space-y-2">
+                  <div class="text-[10px] font-bold text-sky-400 uppercase tracking-widest flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Kode Booking Resmi
                   </div>
-                  <div class="font-mono text-[9px] font-bold text-slate-600 mt-1.5 text-center">
+                  <div class="w-full bg-slate-950 px-3 py-2.5 rounded-xl border border-slate-700 font-mono text-xs sm:text-sm font-black text-white tracking-wider select-all break-all shadow-sm text-center">
                     ${activeBooking.bookingCode || activeBooking.id}
                   </div>
+                  <button onclick="navigator.clipboard.writeText('${activeBooking.bookingCode || activeBooking.id}'); Toast.success('Kode booking berhasil disalin!');" class="text-[11px] text-sky-400 hover:text-sky-300 font-bold flex items-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                    <span>Salin Kode Booking</span>
+                  </button>
                 </div>
 
               </div>
@@ -143,7 +153,7 @@ const MahasiswaDashboard = {
 
             <div class="mt-6 pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
               <p class="text-[11px] text-slate-400 text-center sm:text-left">
-                Tunjukkan barcode / QR ini kepada Laboran di pintu masuk.
+                Sebutkan atau tunjukkan <strong>Kode Booking</strong> ini kepada Laboran di pintu masuk.
               </p>
               <button onclick="QRModal.renderModal(${JSON.stringify(activeBooking).replace(/"/g, '&quot;')})" class="w-full sm:w-auto px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-1.5">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -163,10 +173,12 @@ const MahasiswaDashboard = {
           </div>
           <div>
             <h3 class="font-bold text-base text-slate-800">Belum Ada Pengajuan Peminjaman Lab Aktif</h3>
-            <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Ajukan peminjaman ruang lab atau peralatan riset untuk tugas akhir, praktikum, atau kompetisi.</p>
+            <p class="text-xs text-slate-500 max-w-md mx-auto mt-1">
+              Anda belum memiliki jadwal peminjaman ruang atau alat laboratorium. Silakan ajukan jadwal baru sesuai kebutuhan riset Anda.
+            </p>
           </div>
-          <button onclick="App.navigate('booking')" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-sm transition">
-            + Buat Pengajuan Peminjaman Sekarang
+          <button onclick="App.navigate('booking')" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs rounded-xl shadow-xs transition">
+            Ajukan Peminjaman Sekarang
           </button>
         </div>
       `;
@@ -174,9 +186,9 @@ const MahasiswaDashboard = {
 
     const historyRows = myBookings.map(b => {
       let statusBadge = '';
-      if (b.status === 'disetujui_admin') statusBadge = '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">Disetujui Admin</span>';
-      else if (b.status === 'menunggu_dosen') statusBadge = '<span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold">Menunggu Dosen</span>';
-      else if (b.status === 'menunggu_admin') statusBadge = '<span class="px-2.5 py-1 bg-sky-100 text-sky-800 rounded-full text-[10px] font-bold">Menunggu Admin</span>';
+      if (b.status === 'menunggu_dosen') statusBadge = '<span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold">Menunggu Dosen</span>';
+      else if (b.status === 'menunggu_admin') statusBadge = '<span class="px-2.5 py-1 bg-sky-100 text-sky-800 rounded-full text-[10px] font-bold">Menunggu Laboran</span>';
+      else if (b.status === 'disetujui_admin') statusBadge = '<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">Disetujui (Siap Masuk)</span>';
       else if (b.status === 'sedang_berlangsung') statusBadge = '<span class="px-2.5 py-1 bg-blue-100 text-blue-800 rounded-full text-[10px] font-bold">Sedang Berlangsung</span>';
       else if (b.status === 'selesai') statusBadge = '<span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-[10px] font-bold">Selesai</span>';
       else statusBadge = `<span class="px-2.5 py-1 bg-rose-100 text-rose-800 rounded-full text-[10px] font-bold">${b.status}</span>`;
@@ -190,7 +202,7 @@ const MahasiswaDashboard = {
           <td class="px-4 py-3.5">${statusBadge}</td>
           <td class="px-4 py-3.5 text-right">
             <button onclick="QRModal.renderModal(${JSON.stringify(b).replace(/"/g, '&quot;')})" class="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg border border-sky-200 text-[11px]">
-              E-Ticket
+              Surat Izin
             </button>
           </td>
         </tr>
@@ -261,26 +273,7 @@ const MahasiswaDashboard = {
   },
 
   postRender() {
-    const user = Api.getUser() || { id: 'usr_mhs1' };
-    Api.bookings.getAll({ userId: user.id }).then(res => {
-      const activeBooking = (res.data || []).find(b => ['disetujui_admin', 'sedang_berlangsung', 'menunggu_admin', 'menunggu_dosen'].includes(b.status)) || res.data?.[0];
-      if (activeBooking) {
-        const container = document.getElementById('mhs-qr-preview');
-        if (container) {
-          container.innerHTML = '';
-          if (typeof QRCode !== 'undefined') {
-            new QRCode(container, {
-              text: activeBooking.qrCodeData || activeBooking.bookingCode || activeBooking.id,
-              width: 100,
-              height: 100,
-              colorDark: '#0f172a',
-              colorLight: '#ffffff',
-              correctLevel: QRCode.CorrectLevel.M
-            });
-          }
-        }
-      }
-    }).catch(console.warn);
+    // No QR generation needed anymore
   }
 };
 

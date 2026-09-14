@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 
+const isProduction = process.env.NODE_ENV === 'production' || process.env.DB_SSL === 'true';
+
 const DB_CONFIG = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '3306'),
@@ -11,7 +13,11 @@ const DB_CONFIG = {
   database: process.env.DB_NAME || 'db_lab_ilkom',
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  // SSL diperlukan untuk TiDB Cloud (production). Dinonaktifkan untuk Laragon lokal.
+  ...(isProduction && {
+    ssl: { rejectUnauthorized: true }
+  })
 };
 
 let pool = null;
@@ -22,34 +28,41 @@ const JSON_DB_FILE = path.join(__dirname, 'db.json');
 
 async function initMysql() {
   try {
-    // 1. Connect without database first to ensure database exists
-    const rootConn = await mysql.createConnection({
-      host: DB_CONFIG.host,
-      port: DB_CONFIG.port,
-      user: DB_CONFIG.user,
-      password: DB_CONFIG.password
-    });
+    if (isProduction) {
+      // Di production (TiDB Cloud), database sudah ada — langsung buat pool
+      pool = mysql.createPool(DB_CONFIG);
+    } else {
+      // Di lokal (Laragon), buat database jika belum ada
+      const rootConn = await mysql.createConnection({
+        host: DB_CONFIG.host,
+        port: DB_CONFIG.port,
+        user: DB_CONFIG.user,
+        password: DB_CONFIG.password
+      });
+      await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
+      await rootConn.end();
+      pool = mysql.createPool(DB_CONFIG);
+    }
 
-    await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`);
-    await rootConn.end();
-
-    // 2. Create connection pool to the database
-    pool = mysql.createPool(DB_CONFIG);
-
-    // 3. Ensure tables exist
+    // Ensure tables exist
     await createTablesIfNotExist();
 
     isConnected = true;
-    console.log(`✅ [MySQL Laragon] Terhubung sukses ke database '${DB_CONFIG.database}' di ${DB_CONFIG.host}:${DB_CONFIG.port}`);
+    const dbLabel = isProduction ? 'TiDB Cloud (Production)' : 'MySQL Laragon (Local)';
+    console.log(`✅ [${dbLabel}] Terhubung sukses ke database '${DB_CONFIG.database}' di ${DB_CONFIG.host}:${DB_CONFIG.port}`);
     return true;
   } catch (err) {
     isConnected = false;
-    console.warn(`⚠️ [MySQL Laragon] Tidak dapat terhubung ke MySQL (${err.code || err.message}).`);
-    console.warn(`👉 Pastikan Laragon sudah dinyalakan (Klik 'Start All' di aplikasi Laragon).`);
+    const label = isProduction ? 'TiDB Cloud' : 'MySQL Laragon';
+    console.warn(`⚠️ [${label}] Tidak dapat terhubung ke MySQL (${err.code || err.message}).`);
+    if (!isProduction) {
+      console.warn(`👉 Pastikan Laragon sudah dinyalakan (Klik 'Start All' di aplikasi Laragon).`);
+    }
     console.warn(`ℹ️ Menggunakan fallback database sementara.`);
     return false;
   }
 }
+
 
 async function createTablesIfNotExist() {
   // Table: users
