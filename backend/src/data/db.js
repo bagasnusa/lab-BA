@@ -160,15 +160,18 @@ async function createTablesIfNotExist() {
       \`id\` VARCHAR(50) NOT NULL,
       \`mahasiswa_id\` VARCHAR(50) NOT NULL,
       \`pembimbing1_id\` VARCHAR(50) NOT NULL,
+      \`status_p1\` ENUM('menunggu', 'disetujui', 'ditolak') DEFAULT 'menunggu',
       \`pembimbing2_id\` VARCHAR(50) DEFAULT NULL,
+      \`status_p2\` ENUM('menunggu', 'disetujui', 'ditolak') DEFAULT 'menunggu',
       \`judul_skripsi\` TEXT DEFAULT NULL,
-      \`status\` ENUM('aktif', 'selesai', 'dibatalkan') DEFAULT 'aktif',
+      \`status\` ENUM('diajukan', 'aktif', 'selesai', 'ditolak', 'dibatalkan') DEFAULT 'diajukan',
       \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (\`id\`),
       UNIQUE KEY \`unique_mahasiswa\` (\`mahasiswa_id\`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
+
 
   // Table: thesis_exams (Jadwal Ujian Skripsi)
   await pool.query(`

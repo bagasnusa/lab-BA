@@ -9,10 +9,12 @@ router.get('/lecturers', authenticateToken, thesisController.getLecturers);
 
 // Mahasiswa endpoints
 router.get('/my-supervisor', authenticateToken, thesisController.getMySupervisor);
+router.post('/apply-supervisor', authenticateToken, requireRole('mahasiswa'), thesisController.applySupervisor);
 router.get('/my-exam', authenticateToken, thesisController.getMyExam);
 
 // Dosen endpoints
 router.get('/my-supervision', authenticateToken, thesisController.getMySupervision);
+router.post('/respond-supervision', authenticateToken, requireRole('dosen'), thesisController.respondSupervision);
 router.get('/my-exams-as-examiner', authenticateToken, thesisController.getMyExamsAsExaminer);
 
 // Admin endpoints - Pembimbing

@@ -80,14 +80,21 @@ const DosenDashboard = {
           </div>
         </div>
 
-        <!-- Section 1: Mahasiswa Bimbingan Skripsi Saya -->
+        <!-- Section 1: Mahasiswa Bimbingan & Permohonan Pembimbing -->
         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+          <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 class="text-base font-bold text-slate-900">Mahasiswa Bimbingan Skripsi Saya</h3>
-              <p class="text-xs text-slate-500">Daftar mahasiswa yang Anda bimbing (Pembimbing 1 / 2)</p>
+              <h3 class="text-base font-bold text-slate-900">Mahasiswa Bimbingan & Permohonan Pembimbing Skripsi</h3>
+              <p class="text-xs text-slate-500">Tinjau permohonan menjadi pembimbing atau pantau mahasiswa yang aktif dibimbing</p>
             </div>
-            <span class="text-xs font-bold text-sky-700 bg-sky-50 px-3 py-1 rounded-full">${mySupervision.length} Mahasiswa</span>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full border border-amber-200">
+                ${mySupervision.filter(s => s.statusSaya === 'menunggu').length} Permohonan Menunggu
+              </span>
+              <span class="text-xs font-bold text-sky-700 bg-sky-50 px-3 py-1 rounded-full">
+                ${mySupervision.filter(s => s.statusSaya === 'disetujui').length} Aktif
+              </span>
+            </div>
           </div>
 
           <div class="overflow-x-auto">
@@ -98,8 +105,8 @@ const DosenDashboard = {
                   <th class="px-5 py-3.5">NIM & Program Studi</th>
                   <th class="px-5 py-3.5">Peran Bimbingan</th>
                   <th class="px-5 py-3.5">Judul Skripsi</th>
-                  <th class="px-5 py-3.5">Status</th>
-                  <th class="px-5 py-3.5 text-right">Kontak</th>
+                  <th class="px-5 py-3.5">Respon Anda</th>
+                  <th class="px-5 py-3.5 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
@@ -114,27 +121,45 @@ const DosenDashboard = {
                         ${s.peran}
                       </span>
                     </td>
-                    <td class="px-5 py-4 max-w-sm text-slate-700 font-medium leading-relaxed">
+                    <td class="px-5 py-4 max-w-xs text-slate-700 font-medium leading-relaxed">
                       "${s.judul_skripsi || 'Judul belum didaftarkan'}"
                     </td>
                     <td class="px-5 py-4">
-                      <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold uppercase">${s.status}</span>
+                      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        s.statusSaya === 'disetujui' ? 'bg-emerald-100 text-emerald-800' :
+                        s.statusSaya === 'menunggu' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                      }">
+                        ${s.statusSaya === 'disetujui' ? '✓ Disetujui' : s.statusSaya === 'menunggu' ? '⏳ Menunggu Respon' : '✕ Ditolak'}
+                      </span>
                     </td>
                     <td class="px-5 py-4 text-right">
-                      ${s.mahasiswaPhone ? `
-                        <a href="https://wa.me/${s.mahasiswaPhone.replace(/[^0-9]/g, '')}" target="_blank" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 inline-flex items-center gap-1 text-[11px] transition">
-                          WhatsApp
-                        </a>
-                      ` : '<span class="text-slate-400 text-[11px]">-</span>'}
+                      ${s.statusSaya === 'menunggu' ? `
+                        <div class="flex items-center justify-end gap-1.5">
+                          <button onclick="DosenDashboard.respondSupervision('${s.id}', 'approve')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition shadow-2xs text-[11px] flex items-center gap-1">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            Terima
+                          </button>
+                          <button onclick="DosenDashboard.respondSupervision('${s.id}', 'reject')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-lg transition text-[11px]">
+                            Tolak
+                          </button>
+                        </div>
+                      ` : `
+                        ${s.mahasiswaPhone ? `
+                          <a href="https://wa.me/${s.mahasiswaPhone.replace(/[^0-9]/g, '')}" target="_blank" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 inline-flex items-center gap-1 text-[11px] transition">
+                            WhatsApp
+                          </a>
+                        ` : '<span class="text-slate-400 text-[11px]">-</span>'}
+                      `}
                     </td>
                   </tr>
                 `).join('') : `
-                  <tr><td colspan="6" class="text-center py-8 text-xs text-slate-400">Belum ada mahasiswa bimbingan yang ditugaskan ke Anda.</td></tr>
+                  <tr><td colspan="6" class="text-center py-8 text-xs text-slate-400">Belum ada mahasiswa bimbingan yang ditugaskan atau mengajukan ke Anda.</td></tr>
                 `}
               </tbody>
             </table>
           </div>
         </div>
+
 
         <!-- Section 2: Jadwal Sidang (Sebagai Penguji) -->
         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
@@ -260,6 +285,19 @@ const DosenDashboard = {
     `;
   },
 
+  async respondSupervision(assignmentId, action) {
+    const actionText = action === 'approve' ? 'menyetujui menjadi pembimbing' : 'menolak permohonan bimbingan';
+    if (!confirm(`Apakah Anda yakin ingin ${actionText} untuk mahasiswa ini?`)) return;
+
+    try {
+      const res = await Api.thesis.respondSupervision(assignmentId, action);
+      Toast.success(res.message || 'Respon berhasil disimpan!');
+      App.handleRouting();
+    } catch (err) {
+      Toast.error(err.message || 'Gagal menyimpan respon bimbingan.');
+    }
+  },
+
   async approveStudentBooking(bookingId) {
     try {
       await Api.bookings.updateStatus(bookingId, 'approve_dosen', 'Disetujui oleh dosen pembimbing.');
@@ -282,5 +320,6 @@ const DosenDashboard = {
     }
   }
 };
+
 
 window.DosenDashboard = DosenDashboard;

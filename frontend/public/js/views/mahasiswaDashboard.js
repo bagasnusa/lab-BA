@@ -73,9 +73,22 @@ const MahasiswaDashboard = {
                 </div>
                 <h3 class="font-bold text-slate-900 text-lg">Pembimbing Saya</h3>
               </div>
-              <span class="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-full border border-emerald-200">
-                ${supervisorData ? 'Ditugaskan' : 'Belum Ada'}
-              </span>
+              <div class="flex items-center gap-1.5">
+                <span class="px-2.5 py-0.5 text-[11px] font-bold rounded-full border ${
+                  supervisorData?.status === 'aktif' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                  supervisorData?.status === 'diajukan' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                  supervisorData?.status === 'ditolak' ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                }">
+                  ${
+                    supervisorData?.status === 'aktif' ? 'Disetujui Aktif' :
+                    supervisorData?.status === 'diajukan' ? 'Menunggu Dosen' :
+                    supervisorData?.status === 'ditolak' ? 'Perlu Diajukan Ulang' : 'Belum Ada'
+                  }
+                </span>
+                <button onclick="MahasiswaDashboard.openApplySupervisorModal()" class="px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 font-bold rounded-lg border border-sky-200 text-[11px] transition">
+                  ${supervisorData ? 'Ubah Usulan' : '+ Ajukan'}
+                </button>
+              </div>
             </div>
 
             <!-- Judul Skripsi (jika ada) -->
@@ -95,9 +108,19 @@ const MahasiswaDashboard = {
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pembimbing 1</div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pembimbing 1</span>
+                    ${supervisorData?.status_p1 ? `
+                      <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                        supervisorData.status_p1 === 'disetujui' ? 'bg-emerald-100 text-emerald-800' :
+                        supervisorData.status_p1 === 'menunggu' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                      }">
+                        ${supervisorData.status_p1 === 'disetujui' ? '✓ Disetujui' : supervisorData.status_p1 === 'menunggu' ? '⏳ Menunggu Konfirmasi' : '✕ Ditolak'}
+                      </span>
+                    ` : ''}
+                  </div>
                   <div class="font-bold text-slate-900 text-sm truncate">
-                    ${supervisorData?.pembimbing1Name || 'Belum Ditentukan'}
+                    ${supervisorData?.pembimbing1Name || 'Belum Diajukan'}
                   </div>
                   <div class="text-[11px] text-slate-500 truncate mb-2">
                     ${supervisorData?.pembimbing1Bidang || 'Bidang Komputasi & AI'}
@@ -119,9 +142,19 @@ const MahasiswaDashboard = {
                   <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                 </div>
                 <div class="flex-1 min-w-0">
-                  <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pembimbing 2</div>
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pembimbing 2</span>
+                    ${supervisorData?.pembimbing2Id && supervisorData?.status_p2 ? `
+                      <span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${
+                        supervisorData.status_p2 === 'disetujui' ? 'bg-emerald-100 text-emerald-800' :
+                        supervisorData.status_p2 === 'menunggu' ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
+                      }">
+                        ${supervisorData.status_p2 === 'disetujui' ? '✓ Disetujui' : supervisorData.status_p2 === 'menunggu' ? '⏳ Menunggu Konfirmasi' : '✕ Ditolak'}
+                      </span>
+                    ` : ''}
+                  </div>
                   <div class="font-bold text-slate-900 text-sm truncate">
-                    ${supervisorData?.pembimbing2Name || 'Belum Ditentukan'}
+                    ${supervisorData?.pembimbing2Name || 'Belum Diajukan'}
                   </div>
                   <div class="text-[11px] text-slate-500 truncate mb-2">
                     ${supervisorData?.pembimbing2Bidang || 'Software Engineering'}
@@ -138,6 +171,7 @@ const MahasiswaDashboard = {
               </div>
 
             </div>
+
           </div>
 
           <!-- Kolom Kanan: Jadwal Ujian Saya (7 cols) -->
@@ -349,7 +383,80 @@ const MahasiswaDashboard = {
     printWindow.document.close();
   },
 
+  async openApplySupervisorModal() {
+    let lecturers = [];
+    try {
+      const res = await Api.thesis.getLecturers();
+      lecturers = res.data || [];
+    } catch (e) {
+      console.warn('Gagal memuat daftar dosen:', e);
+    }
+
+    const modalHtml = `
+      <div id="modal-apply-supervisor" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 space-y-6 shadow-2xl animate-fade-in border border-slate-100">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <h3 class="font-bold text-slate-900 text-lg">Ajukan Dosen Pembimbing Skripsi</h3>
+              <p class="text-xs text-slate-500">Pilih calon Pembimbing 1 dan Pembimbing 2 untuk ditinjau oleh dosen</p>
+            </div>
+            <button onclick="document.getElementById('modal-apply-supervisor').remove()" class="p-1.5 text-slate-400 hover:bg-slate-100 rounded-lg">✕</button>
+          </div>
+
+          <form id="form-apply-sup" onsubmit="MahasiswaDashboard.submitApplySupervisor(event)" class="space-y-4 text-xs">
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Judul / Rencana Topik Skripsi *</label>
+              <textarea name="judulSkripsi" required rows="3" placeholder="Contoh: Rancang Bangun Sistem Klasifikasi Kualitas Biji Kopi Menggunakan Convolutional Neural Network..." class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"></textarea>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Usulan Dosen Pembimbing 1 *</label>
+              <select name="pembimbing1Id" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden">
+                <option value="">-- Pilih Dosen Pembimbing Utama --</option>
+                ${lecturers.map(d => `<option value="${d.id}">${d.name} (${d.bidang || 'Dosen TI'})</option>`).join('')}
+              </select>
+              <p class="text-[10px] text-slate-400 mt-1">Dosen akan menerima notifikasi permintaan bimbingan Anda.</p>
+            </div>
+
+            <div>
+              <label class="block font-bold text-slate-700 mb-1">Usulan Dosen Pembimbing 2 (Opsional)</label>
+              <select name="pembimbing2Id" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-sky-500 focus:outline-hidden">
+                <option value="">-- Tanpa Pembimbing 2 / Usulkan Nanti --</option>
+                ${lecturers.map(d => `<option value="${d.id}">${d.name} (${d.bidang || 'Dosen TI'})</option>`).join('')}
+              </select>
+            </div>
+
+            <div class="pt-4 border-t border-slate-100 flex items-center justify-end gap-2">
+              <button type="button" onclick="document.getElementById('modal-apply-supervisor').remove()" class="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl">Batal</button>
+              <button type="submit" class="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-bold rounded-xl shadow-md">Kirim Pengajuan</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+  },
+
+  async submitApplySupervisor(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+      pembimbing1Id: form.pembimbing1Id.value,
+      pembimbing2Id: form.pembimbing2Id.value || null,
+      judulSkripsi: form.judulSkripsi.value
+    };
+    try {
+      const res = await Api.thesis.applySupervisor(data);
+      Toast.success(res.message || 'Pengajuan pembimbing berhasil dikirim!');
+      document.getElementById('modal-apply-supervisor')?.remove();
+      App.handleRouting();
+    } catch (err) {
+      Toast.error(err.message || 'Gagal mengajukan pembimbing.');
+    }
+  },
+
   postRender() {}
 };
+
 
 window.MahasiswaDashboard = MahasiswaDashboard;

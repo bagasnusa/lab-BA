@@ -205,6 +205,13 @@ const Api = {
       return await Api.request('/thesis/my-supervisor');
     },
 
+    async applySupervisor(data) {
+      return await Api.request('/thesis/apply-supervisor', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+
     async getMyExam() {
       return await Api.request('/thesis/my-exam');
     },
@@ -213,9 +220,17 @@ const Api = {
       return await Api.request('/thesis/my-supervision');
     },
 
+    async respondSupervision(assignmentId, action) {
+      return await Api.request('/thesis/respond-supervision', {
+        method: 'POST',
+        body: JSON.stringify({ assignmentId, action })
+      });
+    },
+
     async getMyExamsAsExaminer() {
       return await Api.request('/thesis/my-exams-as-examiner');
     },
+
 
     async getAllSupervisors() {
       return await Api.request('/thesis/supervisors');

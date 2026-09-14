@@ -36,7 +36,7 @@ exports.getAllSupervisors = async (req, res) => {
     }
     const [rows] = await db.pool.query(`
       SELECT 
-        ta.id, ta.judul_skripsi, ta.status, ta.created_at,
+        ta.id, ta.judul_skripsi, ta.status, ta.status_p1, ta.status_p2, ta.created_at,
         mhs.id AS mahasiswaId, mhs.name AS mahasiswaName, mhs.nim AS mahasiswaNim,
         mhs.jurusan AS mahasiswaJurusan, mhs.semester AS mahasiswaSemester,
         p1.id AS pembimbing1Id, p1.name AS pembimbing1Name, p1.bidang AS pembimbing1Bidang,
@@ -63,7 +63,7 @@ exports.getMySupervisor = async (req, res) => {
     const userId = req.user.id;
     const [rows] = await db.pool.query(`
       SELECT 
-        ta.id, ta.judul_skripsi, ta.status,
+        ta.id, ta.judul_skripsi, ta.status, ta.status_p1, ta.status_p2,
         p1.id AS pembimbing1Id, p1.name AS pembimbing1Name, p1.bidang AS pembimbing1Bidang,
         p1.phone AS pembimbing1Phone, p1.email AS pembimbing1Email,
         p2.id AS pembimbing2Id, p2.name AS pembimbing2Name, p2.bidang AS pembimbing2Bidang,
@@ -81,7 +81,57 @@ exports.getMySupervisor = async (req, res) => {
   }
 };
 
-// GET /api/thesis/my-supervision — Dosen: mahasiswa yang dibimbing
+// POST /api/thesis/apply-supervisor — Mahasiswa: Mengajukan Pembimbing 1 & 2
+exports.applySupervisor = async (req, res) => {
+  try {
+    if (!db.isConnected || !db.pool) {
+      return res.status(503).json({ success: false, message: 'Database tidak tersedia.' });
+    }
+    const mahasiswaId = req.user.id;
+    const { pembimbing1Id, pembimbing2Id, judulSkripsi } = req.body;
+
+    if (!pembimbing1Id) {
+      return res.status(400).json({ success: false, message: 'Dosen Pembimbing 1 wajib dipilih.' });
+    }
+
+    if (pembimbing1Id === pembimbing2Id) {
+      return res.status(400).json({ success: false, message: 'Pembimbing 1 dan Pembimbing 2 tidak boleh dosen yang sama.' });
+    }
+
+    // Check if already has an assignment
+    const [existing] = await db.pool.query('SELECT id, status FROM thesis_assignments WHERE mahasiswa_id = ?', [mahasiswaId]);
+    if (existing.length > 0) {
+      // If already active or finished, cannot re-apply
+      if (['aktif', 'selesai'].includes(existing[0].status)) {
+        return res.status(400).json({ success: false, message: 'Anda sudah memiliki pembimbing yang aktif/selesai.' });
+      }
+      // Update existing application
+      await db.pool.query(`
+        UPDATE thesis_assignments 
+        SET pembimbing1_id = ?, status_p1 = 'menunggu', 
+            pembimbing2_id = ?, status_p2 = ?,
+            judul_skripsi = ?, status = 'diajukan'
+        WHERE id = ?
+      `, [pembimbing1Id, pembimbing2Id || null, pembimbing2Id ? 'menunggu' : 'disetujui', judulSkripsi || null, existing[0].id]);
+      
+      return res.json({ success: true, message: 'Pengajuan pembimbing berhasil diperbarui dan dikirim ke dosen terkait.' });
+    }
+
+    const id = 'TA-' + Date.now();
+    await db.pool.query(`
+      INSERT INTO thesis_assignments 
+      (id, mahasiswa_id, pembimbing1_id, status_p1, pembimbing2_id, status_p2, judul_skripsi, status)
+      VALUES (?, ?, ?, 'menunggu', ?, ?, ?, 'diajukan')
+    `, [id, mahasiswaId, pembimbing1Id, pembimbing2Id || null, pembimbing2Id ? 'menunggu' : 'disetujui', judulSkripsi || null]);
+
+    return res.status(201).json({ success: true, message: 'Pengajuan pembimbing berhasil dikirim ke dosen terkait.' });
+  } catch (err) {
+    console.error('applySupervisor error:', err);
+    return res.status(500).json({ success: false, message: 'Gagal mengajukan pembimbing.' });
+  }
+};
+
+// GET /api/thesis/my-supervision — Dosen: mahasiswa bimbingan & permohonan yang menunggu persetujuan
 exports.getMySupervision = async (req, res) => {
   try {
     if (!db.isConnected || !db.pool) {
@@ -90,11 +140,15 @@ exports.getMySupervision = async (req, res) => {
     const dosenId = req.user.id;
     const [rows] = await db.pool.query(`
       SELECT 
-        ta.id, ta.judul_skripsi, ta.status,
+        ta.id, ta.judul_skripsi, ta.status, ta.status_p1, ta.status_p2,
         CASE 
           WHEN ta.pembimbing1_id = ? THEN 'Pembimbing 1'
           WHEN ta.pembimbing2_id = ? THEN 'Pembimbing 2'
         END AS peran,
+        CASE 
+          WHEN ta.pembimbing1_id = ? THEN ta.status_p1
+          WHEN ta.pembimbing2_id = ? THEN ta.status_p2
+        END AS statusSaya,
         mhs.id AS mahasiswaId, mhs.name AS mahasiswaName, mhs.nim AS mahasiswaNim,
         mhs.jurusan AS mahasiswaJurusan, mhs.semester AS mahasiswaSemester,
         mhs.phone AS mahasiswaPhone, mhs.email AS mahasiswaEmail
@@ -102,7 +156,7 @@ exports.getMySupervision = async (req, res) => {
       JOIN users mhs ON ta.mahasiswa_id = mhs.id
       WHERE ta.pembimbing1_id = ? OR ta.pembimbing2_id = ?
       ORDER BY ta.created_at DESC
-    `, [dosenId, dosenId, dosenId, dosenId]);
+    `, [dosenId, dosenId, dosenId, dosenId, dosenId, dosenId]);
     return res.json({ success: true, data: rows });
   } catch (err) {
     console.error('getMySupervision error:', err);
@@ -110,7 +164,68 @@ exports.getMySupervision = async (req, res) => {
   }
 };
 
-// POST /api/thesis/supervisors — Admin: tambah pembagian pembimbing
+// POST /api/thesis/respond-supervision — Dosen: Setujui / Tolak Permohonan Bimbingan
+exports.respondSupervision = async (req, res) => {
+  try {
+    if (!db.isConnected || !db.pool) {
+      return res.status(503).json({ success: false, message: 'Database tidak tersedia.' });
+    }
+    const dosenId = req.user.id;
+    const { assignmentId, action } = req.body; // action: 'approve' or 'reject'
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'Aksi tidak valid.' });
+    }
+
+    const [rows] = await db.pool.query('SELECT * FROM thesis_assignments WHERE id = ?', [assignmentId]);
+    if (rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Data pengajuan tidak ditemukan.' });
+    }
+
+    const assignment = rows[0];
+    const isP1 = assignment.pembimbing1_id === dosenId;
+    const isP2 = assignment.pembimbing2_id === dosenId;
+
+    if (!isP1 && !isP2) {
+      return res.status(403).json({ success: false, message: 'Anda bukan dosen pembimbing yang dituju.' });
+    }
+
+    const newStatus = action === 'approve' ? 'disetujui' : 'ditolak';
+
+    let updateSql = '';
+    if (isP1) {
+      updateSql = 'UPDATE thesis_assignments SET status_p1 = ? WHERE id = ?';
+    } else {
+      updateSql = 'UPDATE thesis_assignments SET status_p2 = ? WHERE id = ?';
+    }
+    await db.pool.query(updateSql, [newStatus, assignmentId]);
+
+    // Recalculate overall status
+    const [updated] = await db.pool.query('SELECT * FROM thesis_assignments WHERE id = ?', [assignmentId]);
+    const u = updated[0];
+
+    let finalStatus = 'diajukan';
+    if (u.status_p1 === 'ditolak' || u.status_p2 === 'ditolak') {
+      finalStatus = 'ditolak';
+    } else if (u.status_p1 === 'disetujui' && (!u.pembimbing2_id || u.status_p2 === 'disetujui')) {
+      finalStatus = 'aktif';
+    }
+
+    await db.pool.query('UPDATE thesis_assignments SET status = ? WHERE id = ?', [finalStatus, assignmentId]);
+
+    return res.json({
+      success: true,
+      message: action === 'approve' 
+        ? 'Anda telah menyetujui permohonan bimbingan skripsi ini.' 
+        : 'Anda telah menolak permohonan bimbingan skripsi ini.'
+    });
+  } catch (err) {
+    console.error('respondSupervision error:', err);
+    return res.status(500).json({ success: false, message: 'Gagal memproses respon pembimbing.' });
+  }
+};
+
+// POST /api/thesis/supervisors — Admin: tambah/assign pembagian pembimbing langsung
 exports.createSupervisor = async (req, res) => {
   try {
     if (!db.isConnected || !db.pool) {
@@ -122,7 +237,7 @@ exports.createSupervisor = async (req, res) => {
     }
     const id = 'TA-' + Date.now();
     await db.pool.query(
-      'INSERT INTO thesis_assignments (id, mahasiswa_id, pembimbing1_id, pembimbing2_id, judul_skripsi) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO thesis_assignments (id, mahasiswa_id, pembimbing1_id, status_p1, pembimbing2_id, status_p2, judul_skripsi, status) VALUES (?, ?, ?, \'disetujui\', ?, \'disetujui\', ?, \'aktif\')',
       [id, mahasiswaId, pembimbing1Id, pembimbing2Id || null, judulSkripsi || null]
     );
     return res.status(201).json({ success: true, message: 'Pembagian pembimbing berhasil ditambahkan.', id });
@@ -134,6 +249,7 @@ exports.createSupervisor = async (req, res) => {
     return res.status(500).json({ success: false, message: 'Gagal menyimpan data.' });
   }
 };
+
 
 // PUT /api/thesis/supervisors/:id — Admin: edit pembagian
 exports.updateSupervisor = async (req, res) => {

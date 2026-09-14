@@ -138,12 +138,21 @@ const AdminDashboard = {
                         ` : '<span class="text-slate-400 italic">Belum ditentukan</span>'}
                       </td>
                       <td class="px-5 py-4">
-                        <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-                          s.status === 'aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'
-                        }">
-                          ${s.status}
-                        </span>
+                        <div class="space-y-1">
+                          <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            s.status === 'aktif' ? 'bg-emerald-100 text-emerald-800' :
+                            s.status === 'diajukan' ? 'bg-amber-100 text-amber-800' :
+                            s.status === 'ditolak' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-700'
+                          }">
+                            ${s.status}
+                          </span>
+                          <div class="text-[10px] text-slate-500 font-mono">
+                            P1: <strong class="${s.status_p1 === 'disetujui' ? 'text-emerald-600' : s.status_p1 === 'ditolak' ? 'text-rose-600' : 'text-amber-600'}">${s.status_p1 || '-'}</strong>
+                            ${s.pembimbing2Id ? ` | P2: <strong class="${s.status_p2 === 'disetujui' ? 'text-emerald-600' : s.status_p2 === 'ditolak' ? 'text-rose-600' : 'text-amber-600'}">${s.status_p2 || '-'}</strong>` : ''}
+                          </div>
+                        </div>
                       </td>
+
                       <td class="px-5 py-4 text-right">
                         <button onclick="AdminDashboard.deleteSupervisor('${s.id}')" class="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition" title="Hapus Penugasan">
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>

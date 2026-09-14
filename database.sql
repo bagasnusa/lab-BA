@@ -145,9 +145,11 @@ CREATE TABLE IF NOT EXISTS `thesis_assignments` (
   `id` VARCHAR(50) NOT NULL,
   `mahasiswa_id` VARCHAR(50) NOT NULL,
   `pembimbing1_id` VARCHAR(50) NOT NULL,
+  `status_p1` ENUM('menunggu', 'disetujui', 'ditolak') DEFAULT 'menunggu',
   `pembimbing2_id` VARCHAR(50) DEFAULT NULL,
+  `status_p2` ENUM('menunggu', 'disetujui', 'ditolak') DEFAULT 'menunggu',
   `judul_skripsi` TEXT DEFAULT NULL,
-  `status` ENUM('aktif', 'selesai', 'dibatalkan') DEFAULT 'aktif',
+  `status` ENUM('diajukan', 'aktif', 'selesai', 'ditolak', 'dibatalkan') DEFAULT 'diajukan',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -158,10 +160,11 @@ CREATE TABLE IF NOT EXISTS `thesis_assignments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Seed Pembagian Pembimbing
-INSERT INTO `thesis_assignments` (`id`, `mahasiswa_id`, `pembimbing1_id`, `pembimbing2_id`, `judul_skripsi`, `status`) VALUES
-('TA-001', 'usr_mhs1', 'usr_dosen1', 'usr_dosen2', 'Implementasi Model Vision-Language Transformer untuk Deteksi Penyakit Tanaman Berbasis Deep Learning', 'aktif'),
-('TA-002', 'usr_mhs2', 'usr_dosen2', 'usr_dosen1', 'Pengembangan Sistem Informasi Manajemen Keuangan UMKM Berbasis Web dengan Fitur Prediksi Cash Flow', 'aktif'),
-('TA-003', 'usr_mhs3', 'usr_dosen1', NULL, 'Analisis Kerentanan Keamanan Jaringan IoT pada Smart Home System Menggunakan Metode Penetration Testing', 'aktif');
+INSERT INTO `thesis_assignments` (`id`, `mahasiswa_id`, `pembimbing1_id`, `status_p1`, `pembimbing2_id`, `status_p2`, `judul_skripsi`, `status`) VALUES
+('TA-001', 'usr_mhs1', 'usr_dosen1', 'disetujui', 'usr_dosen2', 'disetujui', 'Implementasi Model Vision-Language Transformer untuk Deteksi Penyakit Tanaman Berbasis Deep Learning', 'aktif'),
+('TA-002', 'usr_mhs2', 'usr_dosen2', 'disetujui', 'usr_dosen1', 'menunggu', 'Pengembangan Sistem Informasi Manajemen Keuangan UMKM Berbasis Web dengan Fitur Prediksi Cash Flow', 'diajukan'),
+('TA-003', 'usr_mhs3', 'usr_dosen1', 'disetujui', NULL, 'disetujui', 'Analisis Kerentanan Keamanan Jaringan IoT pada Smart Home System Menggunakan Metode Penetration Testing', 'aktif');
+
 
 -- --------------------------------------------------------
 -- Tabel: thesis_exams (Jadwal Ujian Skripsi)
