@@ -10,6 +10,7 @@ const labRoutes = require('./routes/labRoutes');
 const equipmentRoutes = require('./routes/equipmentRoutes');
 const bookingRoutes = require('./routes/bookingRoutes');
 const statsRoutes = require('./routes/statsRoutes');
+const thesisRoutes = require('./routes/thesisRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -30,6 +31,7 @@ app.use('/api/labs', labRoutes);
 app.use('/api/equipments', equipmentRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/thesis', thesisRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

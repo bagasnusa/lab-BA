@@ -154,6 +154,50 @@ async function createTablesIfNotExist() {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
   `);
 
+  // Table: thesis_assignments (Pembagian Pembimbing Skripsi)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS \`thesis_assignments\` (
+      \`id\` VARCHAR(50) NOT NULL,
+      \`mahasiswa_id\` VARCHAR(50) NOT NULL,
+      \`pembimbing1_id\` VARCHAR(50) NOT NULL,
+      \`pembimbing2_id\` VARCHAR(50) DEFAULT NULL,
+      \`judul_skripsi\` TEXT DEFAULT NULL,
+      \`status\` ENUM('aktif', 'selesai', 'dibatalkan') DEFAULT 'aktif',
+      \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`),
+      UNIQUE KEY \`unique_mahasiswa\` (\`mahasiswa_id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  // Table: thesis_exams (Jadwal Ujian Skripsi)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS \`thesis_exams\` (
+      \`id\` VARCHAR(50) NOT NULL,
+      \`mahasiswa_id\` VARCHAR(50) NOT NULL,
+      \`jenis_ujian\` ENUM('proposal','seminar_hasil','sidang_skripsi','komprehensif') NOT NULL DEFAULT 'proposal',
+      \`tanggal\` DATE NOT NULL,
+      \`jam_mulai\` TIME NOT NULL,
+      \`jam_selesai\` TIME NOT NULL,
+      \`ruangan\` VARCHAR(150) NOT NULL,
+      \`status\` ENUM('mendatang','selesai','dibatalkan') DEFAULT 'mendatang',
+      \`catatan\` TEXT DEFAULT NULL,
+      \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      \`updated_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (\`id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
+  // Table: thesis_exam_examiners (Dosen Penguji per Ujian)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS \`thesis_exam_examiners\` (
+      \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+      \`exam_id\` VARCHAR(50) NOT NULL,
+      \`dosen_id\` VARCHAR(50) NOT NULL,
+      UNIQUE KEY \`unique_exam_dosen\` (\`exam_id\`, \`dosen_id\`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+  `);
+
   // Check if initial users exist, if not run seed
   const [userRows] = await pool.query('SELECT COUNT(*) as count FROM `users`');
   if (userRows[0].count === 0) {
@@ -204,6 +248,32 @@ async function seedMysqlData() {
     ['BOOK-2026-004', 'LAB-ILKOM-2026-0904-D', 'usr_mhs1', 'Bagas Pratama', '22051204001', 'Teknik Informatika', '082155443322', 'LAB-04', 'Lab Multimedia, Animasi & Game Development', '2026-09-04', '13:00 - 16:30 (Sesi Siang)', 'siang', 3, 'Rendering Aset Visual 3D & Pengujian Scene VR Menggunakan Oculus Meta Quest 3', 'Proyek Kreatif Mahasiswa', 'usr_dosen2', 'Dr. Siti Nurhaliza, M.Cs.', JSON.stringify(["Oculus Meta Quest 3 VR Headset"]), 'menunggu_admin', 'Rekomendasi disetujui. Mahasiswa telah menyelesaikan desain 3D di Blender.', '', 'LAB-AUTH:BOOK-2026-004:22051204001:LAB-04:20260904']
   ];
   await pool.query('INSERT INTO `bookings` (id, booking_code, user_id, user_name, user_nim, user_jurusan, user_phone, lab_id, lab_name, date, time_slot, session, participants_count, purpose, category, dosen_id, dosen_name, equipments, status, dosen_notes, admin_notes, qr_code_data) VALUES ?', [bookings]);
+
+  // 5. Seed Thesis Assignments (Pembagian Pembimbing)
+  const assignments = [
+    ['TA-001', 'usr_mhs1', 'usr_dosen1', 'usr_dosen2', 'Implementasi Model Vision-Language Transformer untuk Deteksi Penyakit Tanaman Berbasis Deep Learning', 'aktif'],
+    ['TA-002', 'usr_mhs2', 'usr_dosen2', 'usr_dosen1', 'Pengembangan Sistem Informasi Manajemen Keuangan UMKM Berbasis Web dengan Fitur Prediksi Cash Flow', 'aktif'],
+    ['TA-003', 'usr_mhs3', 'usr_dosen1', null, 'Analisis Kerentanan Keamanan Jaringan IoT pada Smart Home System Menggunakan Metode Penetration Testing', 'aktif']
+  ];
+  await pool.query('INSERT INTO `thesis_assignments` (id, mahasiswa_id, pembimbing1_id, pembimbing2_id, judul_skripsi, status) VALUES ?', [assignments]);
+
+  // 6. Seed Thesis Exams (Jadwal Ujian)
+  const exams = [
+    ['TE-001', 'usr_mhs1', 'proposal', '2026-09-20', '09:00:00', '10:00:00', 'Ruang Sidang Lab TI Lt. 6', 'mendatang', null],
+    ['TE-002', 'usr_mhs2', 'seminar_hasil', '2026-09-25', '13:00:00', '14:30:00', 'Ruang Seminar Gedung TI R.601', 'mendatang', 'Bawa printout laporan 3 eksemplar'],
+    ['TE-003', 'usr_mhs3', 'proposal', '2026-09-18', '10:00:00', '11:00:00', 'Ruang Sidang Lab TI Lt. 7', 'selesai', null]
+  ];
+  await pool.query('INSERT INTO `thesis_exams` (id, mahasiswa_id, jenis_ujian, tanggal, jam_mulai, jam_selesai, ruangan, status, catatan) VALUES ?', [exams]);
+
+  // 7. Seed Thesis Exam Examiners (Dosen Penguji)
+  const examiners = [
+    ['TE-001', 'usr_dosen1'],
+    ['TE-001', 'usr_dosen2'],
+    ['TE-002', 'usr_dosen1'],
+    ['TE-002', 'usr_dosen2'],
+    ['TE-003', 'usr_dosen2']
+  ];
+  await pool.query('INSERT INTO `thesis_exam_examiners` (exam_id, dosen_id) VALUES ?', [examiners]);
 
   console.log('✅ Seed data MySQL berhasil disiapkan.');
 }

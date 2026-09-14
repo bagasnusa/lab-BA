@@ -137,3 +137,74 @@ INSERT INTO `bookings` (`id`, `booking_code`, `user_id`, `user_name`, `user_nim`
 ('BOOK-2026-002', 'LAB-ILKOM-2026-0902-B', 'usr_mhs2', 'Anisa Rahmawati', '22051204015', 'Sistem Informasi', '085712345678', 'LAB-01', 'Lab Rekayasa Perangkat Lunak & Basis Data (RPL)', '2026-09-02', '13:00 - 16:30 (Sesi Siang)', 'siang', 30, 'Praktikum Mandiri dan Evaluasi Sprint Pengembangan Aplikasi Web Enterprise', 'Praktikum Kuliah', 'usr_dosen2', 'Dr. Siti Nurhaliza, M.Cs.', '["Proyektor Laser Epson EB-L210W (4500 Lumens)"]', 'disetujui_admin', 'Disetujui untuk sesi praktikum mandiri kelompok.', 'Disetujui. Ruang 201 sudah disiapkan.', 'LAB-AUTH:BOOK-2026-002:220512040015:LAB-01:20260902'),
 ('BOOK-2026-003', 'LAB-ILKOM-2026-0903-C', 'usr_mhs3', 'Dimas Anggara', '21051204040', 'Teknik Komputer', '087811223344', 'LAB-03', 'Lab Jaringan Komputer & Cyber Security', '2026-09-03', '08:00 - 11:30 (Sesi Pagi)', 'pagi', 6, 'Latihan Bersama dan Simulasi Penetrasi Jaringan Tim CTF Ilkom untuk Kompetisi Nasional', 'Kegiatan Komunitas / Kompetisi', 'usr_dosen1', 'Dr. Hendra Gunawan, S.Kom., M.T.', '["Wireless Clip-on Microphone & Speaker Set"]', 'menunggu_dosen', '', '', 'LAB-AUTH:BOOK-2026-003:21051204040:LAB-03:20260903'),
 ('BOOK-2026-004', 'LAB-ILKOM-2026-0904-D', 'usr_mhs1', 'Bagas Pratama', '22051204001', 'Teknik Informatika', '082155443322', 'LAB-04', 'Lab Multimedia, Animasi & Game Development', '2026-09-04', '13:00 - 16:30 (Sesi Siang)', 'siang', 3, 'Rendering Aset Visual 3D & Pengujian Scene VR Menggunakan Oculus Meta Quest 3', 'Proyek Kreatif Mahasiswa', 'usr_dosen2', 'Dr. Siti Nurhaliza, M.Cs.', '["Oculus Meta Quest 3 VR Headset"]', 'menunggu_admin', 'Rekomendasi disetujui. Mahasiswa telah menyelesaikan desain 3D di Blender.', '', 'LAB-AUTH:BOOK-2026-004:22051204001:LAB-04:20260904');
+
+-- --------------------------------------------------------
+-- Tabel: thesis_assignments (Pembagian Pembimbing)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `thesis_assignments` (
+  `id` VARCHAR(50) NOT NULL,
+  `mahasiswa_id` VARCHAR(50) NOT NULL,
+  `pembimbing1_id` VARCHAR(50) NOT NULL,
+  `pembimbing2_id` VARCHAR(50) DEFAULT NULL,
+  `judul_skripsi` TEXT DEFAULT NULL,
+  `status` ENUM('aktif', 'selesai', 'dibatalkan') DEFAULT 'aktif',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `unique_mahasiswa` (`mahasiswa_id`),
+  CONSTRAINT `fk_ta_mhs` FOREIGN KEY (`mahasiswa_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ta_p1` FOREIGN KEY (`pembimbing1_id`) REFERENCES `users` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_ta_p2` FOREIGN KEY (`pembimbing2_id`) REFERENCES `users` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Seed Pembagian Pembimbing
+INSERT INTO `thesis_assignments` (`id`, `mahasiswa_id`, `pembimbing1_id`, `pembimbing2_id`, `judul_skripsi`, `status`) VALUES
+('TA-001', 'usr_mhs1', 'usr_dosen1', 'usr_dosen2', 'Implementasi Model Vision-Language Transformer untuk Deteksi Penyakit Tanaman Berbasis Deep Learning', 'aktif'),
+('TA-002', 'usr_mhs2', 'usr_dosen2', 'usr_dosen1', 'Pengembangan Sistem Informasi Manajemen Keuangan UMKM Berbasis Web dengan Fitur Prediksi Cash Flow', 'aktif'),
+('TA-003', 'usr_mhs3', 'usr_dosen1', NULL, 'Analisis Kerentanan Keamanan Jaringan IoT pada Smart Home System Menggunakan Metode Penetration Testing', 'aktif');
+
+-- --------------------------------------------------------
+-- Tabel: thesis_exams (Jadwal Ujian Skripsi)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `thesis_exams` (
+  `id` VARCHAR(50) NOT NULL,
+  `mahasiswa_id` VARCHAR(50) NOT NULL,
+  `jenis_ujian` ENUM('proposal','seminar_hasil','sidang_skripsi','komprehensif') NOT NULL DEFAULT 'proposal',
+  `tanggal` DATE NOT NULL,
+  `jam_mulai` TIME NOT NULL,
+  `jam_selesai` TIME NOT NULL,
+  `ruangan` VARCHAR(150) NOT NULL,
+  `status` ENUM('mendatang','selesai','dibatalkan') DEFAULT 'mendatang',
+  `catatan` TEXT DEFAULT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  CONSTRAINT `fk_te_mhs` FOREIGN KEY (`mahasiswa_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Seed Jadwal Ujian
+INSERT INTO `thesis_exams` (`id`, `mahasiswa_id`, `jenis_ujian`, `tanggal`, `jam_mulai`, `jam_selesai`, `ruangan`, `status`, `catatan`) VALUES
+('TE-001', 'usr_mhs1', 'proposal', '2026-09-20', '09:00:00', '10:00:00', 'Ruang Sidang Lab TI Lt. 6', 'mendatang', NULL),
+('TE-002', 'usr_mhs2', 'seminar_hasil', '2026-09-25', '13:00:00', '14:30:00', 'Ruang Seminar Gedung TI R.601', 'mendatang', 'Bawa printout laporan 3 eksemplar'),
+('TE-003', 'usr_mhs3', 'proposal', '2026-09-18', '10:00:00', '11:00:00', 'Ruang Sidang Lab TI Lt. 7', 'selesai', NULL);
+
+-- --------------------------------------------------------
+-- Tabel: thesis_exam_examiners (Dosen Penguji Ujian)
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS `thesis_exam_examiners` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `exam_id` VARCHAR(50) NOT NULL,
+  `dosen_id` VARCHAR(50) NOT NULL,
+  UNIQUE KEY `unique_exam_dosen` (`exam_id`, `dosen_id`),
+  CONSTRAINT `fk_tee_exam` FOREIGN KEY (`exam_id`) REFERENCES `thesis_exams` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_tee_dosen` FOREIGN KEY (`dosen_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Seed Dewan Penguji
+INSERT INTO `thesis_exam_examiners` (`exam_id`, `dosen_id`) VALUES
+('TE-001', 'usr_dosen1'),
+('TE-001', 'usr_dosen2'),
+('TE-002', 'usr_dosen1'),
+('TE-002', 'usr_dosen2'),
+('TE-003', 'usr_dosen2');
+

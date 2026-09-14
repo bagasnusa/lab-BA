@@ -1,181 +1,210 @@
 const DosenDashboard = {
+  activeTab: 'validasi', // 'validasi', 'bimbingan', 'penguji'
+
   async render() {
     const user = Api.getUser() || { name: 'Dr. Hendra Gunawan, S.Kom., M.T.', nip: '197805122003121001' };
+    
     let myStudentBookings = [];
+    let mySupervision = [];
+    let myExamsAsExaminer = [];
 
     try {
-      const res = await Api.bookings.getAll({ dosenId: user.id });
-      myStudentBookings = res.data || [];
+      const [bookRes, supRes, examRes] = await Promise.allSettled([
+        Api.bookings.getAll({ dosenId: user.id }),
+        Api.thesis.getMySupervision(),
+        Api.thesis.getMyExamsAsExaminer()
+      ]);
+      if (bookRes.status === 'fulfilled') myStudentBookings = bookRes.value?.data || [];
+      if (supRes.status === 'fulfilled') mySupervision = supRes.value?.data || [];
+      if (examRes.status === 'fulfilled') myExamsAsExaminer = examRes.value?.data || [];
     } catch (e) {
       console.error('Error loading dosen dashboard data:', e);
     }
 
     const pendingForMe = myStudentBookings.filter(b => b.status === 'menunggu_dosen');
-    const approvedByMe = myStudentBookings.filter(b => b.status !== 'menunggu_dosen' && b.status !== 'ditolak_dosen');
-
-    const pendingRowsHtml = pendingForMe.length > 0 ? pendingForMe.map(b => `
-      <tr class="hover:bg-slate-50/80 transition text-xs border-b border-slate-100">
-        <td class="px-4 py-3.5 font-mono font-bold text-sky-700">${b.bookingCode || b.id}</td>
-        <td class="px-4 py-3.5">
-          <div class="font-bold text-slate-900">${b.userName}</div>
-          <div class="text-[11px] text-slate-500 font-mono">${b.userNim} • ${b.userJurusan || 'Teknik Informatika'}</div>
-        </td>
-        <td class="px-4 py-3.5">
-          <div class="font-semibold text-slate-800">${b.labName}</div>
-          <div class="text-[11px] text-slate-500">${b.date} • ${b.timeSlot}</div>
-        </td>
-        <td class="px-4 py-3.5 max-w-xs text-slate-600">
-          <p class="font-medium text-slate-800 mb-0.5">${b.category}</p>
-          <p class="truncate text-[11px]" title="${b.purpose}">${b.purpose}</p>
-        </td>
-        <td class="px-4 py-3.5">
-          <span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold">Menunggu Validasi Dosen</span>
-        </td>
-        <td class="px-4 py-3.5">
-          <div class="flex items-center gap-1.5">
-            <button onclick="DosenDashboard.approveStudentBooking('${b.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow-2xs flex items-center gap-1">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              Setujui Rekomendasi
-            </button>
-            <button onclick="DosenDashboard.rejectStudentBooking('${b.id}')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-lg transition">
-              Tolak
-            </button>
-          </div>
-        </td>
-      </tr>
-    `).join('') : `
-      <tr>
-        <td colspan="6" class="text-center py-8 text-xs text-slate-400">
-          ✅ Semua pengajuan mahasiswa bimbingan telah divalidasi.
-        </td>
-      </tr>
-    `;
-
-    const allMyStudentsRows = myStudentBookings.map(b => {
-      let statusBadge = '';
-      if (b.status === 'disetujui_admin') statusBadge = '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold">Disetujui Admin</span>';
-      else if (b.status === 'menunggu_admin') statusBadge = '<span class="px-2 py-0.5 bg-sky-100 text-sky-800 rounded-full text-[10px] font-bold">Menunggu Admin Lab</span>';
-      else if (b.status === 'menunggu_dosen') statusBadge = '<span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold">Menunggu Validasi Anda</span>';
-      else statusBadge = `<span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded-full text-[10px] font-bold">${b.status}</span>`;
-
-      return `
-        <tr class="hover:bg-slate-50 text-xs border-b border-slate-100">
-          <td class="px-4 py-3 font-mono font-medium text-slate-700">${b.bookingCode || b.id}</td>
-          <td class="px-4 py-3 font-bold text-slate-800">${b.userName} (${b.userNim})</td>
-          <td class="px-4 py-3 text-slate-700">${b.labName}</td>
-          <td class="px-4 py-3 text-slate-600">${b.date}</td>
-          <td class="px-4 py-3">${statusBadge}</td>
-          <td class="px-4 py-3 text-right">
-            <button onclick="QRModal.renderModal(${JSON.stringify(b).replace(/"/g, '&quot;')})" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[11px]">
-              Lihat Detail
-            </button>
-          </td>
-        </tr>
-      `;
-    }).join('');
 
     return `
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
-        <!-- Welcome Header (Figma Matched) -->
+        <!-- Welcome Header Dosen -->
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-indigo-800 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl">
           <div class="space-y-1.5">
             <div class="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/30 text-indigo-200 rounded-full text-xs font-bold uppercase tracking-wider">
-              👨‍🏫 Portal Dosen Pembimbing & Peneliti
+              👨‍🏫 Portal Dosen Pembimbing & Penguji
             </div>
             <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Selamat Datang, ${user.name} 👋
             </h1>
             <p class="text-xs sm:text-sm text-indigo-100/80">
-              Validasi permohonan riset mahasiswa bimbingan dan jadwalkan penggunaan laboratorium untuk kegiatan akademik.
+              NIP: ${user.nip || '-'} • Bidang: ${user.bidang || 'Kecerdasan Buatan & Sistem Cerdas'}
             </p>
           </div>
-
-          <div class="flex items-center gap-3">
-            <button onclick="App.navigate('booking')" class="px-4 py-2.5 bg-white text-slate-900 hover:bg-indigo-50 text-xs font-bold rounded-xl shadow-sm transition flex items-center gap-2">
-              <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-              Pinjam Lab untuk Riset Dosen
-            </button>
-          </div>
-        </div>
-
-        <!-- Metric Stat Cards (Figma Matched) -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
           
-          <!-- Card 1 -->
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xl">
-              📋
-            </div>
-            <div>
-              <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Perlu Validasi Anda</div>
-              <div class="text-2xl font-extrabold text-slate-900">${pendingForMe.length}</div>
-              <div class="text-[11px] text-amber-600 font-medium">Mahasiswa Bimbingan</div>
-            </div>
+          <div class="flex items-center gap-2">
+            <span class="px-3.5 py-1.5 bg-white/10 text-white rounded-xl text-xs font-bold border border-white/20">
+              ${mySupervision.length} Mahasiswa Bimbingan
+            </span>
+            <span class="px-3.5 py-1.5 bg-white/10 text-white rounded-xl text-xs font-bold border border-white/20">
+              ${myExamsAsExaminer.length} Jadwal Sidang
+            </span>
           </div>
-
-          <!-- Card 2 -->
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xl">
-              ✅
-            </div>
-            <div>
-              <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Telah Disetujui</div>
-              <div class="text-2xl font-extrabold text-slate-900">${approvedByMe.length}</div>
-              <div class="text-[11px] text-emerald-600 font-medium">Aktif / Berjalan</div>
-            </div>
-          </div>
-
-          <!-- Card 3 -->
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xl">
-              🎓
-            </div>
-            <div>
-              <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Total Riwayat Peminjaman</div>
-              <div class="text-2xl font-extrabold text-slate-900">${myStudentBookings.length}</div>
-              <div class="text-[11px] text-indigo-600 font-medium">Agenda Terdaftar</div>
-            </div>
-          </div>
-
         </div>
 
-        <!-- Pending Approval Table -->
+        <!-- Metric Stat Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xl">⏳</div>
+            <div>
+              <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Izin Lab Pending</div>
+              <div class="text-2xl font-extrabold text-slate-900">${pendingForMe.length}</div>
+              <div class="text-[11px] text-amber-600 font-medium">Perlu rekomendasi Anda</div>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold text-xl">🎓</div>
+            <div>
+              <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Mahasiswa Bimbingan</div>
+              <div class="text-2xl font-extrabold text-slate-900">${mySupervision.length}</div>
+              <div class="text-[11px] text-sky-600 font-medium">Pembimbing 1 & 2</div>
+            </div>
+          </div>
+
+          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xl">📅</div>
+            <div>
+              <div class="text-xs text-slate-500 font-semibold uppercase tracking-wider">Sidang sbg Penguji</div>
+              <div class="text-2xl font-extrabold text-slate-900">${myExamsAsExaminer.length}</div>
+              <div class="text-[11px] text-purple-600 font-medium">Proposal & Skripsi</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 1: Mahasiswa Bimbingan Skripsi Saya -->
         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="p-6 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
-                <span>Daftar Pengajuan Mahasiswa Bimbingan yang Membutuhkan Validasi</span>
-                <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded-full text-xs font-bold">${pendingForMe.length}</span>
-              </h3>
-              <p class="text-xs text-slate-500 mt-0.5">Persetujuan Anda akan meneruskan pengajuan ke Admin Laboran untuk alokasi kunci & alat.</p>
+              <h3 class="text-base font-bold text-slate-900">Mahasiswa Bimbingan Skripsi Saya</h3>
+              <p class="text-xs text-slate-500">Daftar mahasiswa yang Anda bimbing (Pembimbing 1 / 2)</p>
             </div>
+            <span class="text-xs font-bold text-sky-700 bg-sky-50 px-3 py-1 rounded-full">${mySupervision.length} Mahasiswa</span>
           </div>
 
           <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
               <thead>
                 <tr class="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
-                  <th class="px-4 py-3">No. Booking</th>
-                  <th class="px-4 py-3">Mahasiswa</th>
-                  <th class="px-4 py-3">Laboratorium & Waktu</th>
-                  <th class="px-4 py-3">Tujuan / Agenda</th>
-                  <th class="px-4 py-3">Status</th>
-                  <th class="px-4 py-3">Aksi Dosen</th>
+                  <th class="px-5 py-3.5">Mahasiswa</th>
+                  <th class="px-5 py-3.5">NIM & Program Studi</th>
+                  <th class="px-5 py-3.5">Peran Bimbingan</th>
+                  <th class="px-5 py-3.5">Judul Skripsi</th>
+                  <th class="px-5 py-3.5">Status</th>
+                  <th class="px-5 py-3.5 text-right">Kontak</th>
                 </tr>
               </thead>
               <tbody>
-                ${pendingRowsHtml}
+                ${mySupervision.length > 0 ? mySupervision.map(s => `
+                  <tr class="hover:bg-slate-50 text-xs border-b border-slate-100">
+                    <td class="px-5 py-4 font-bold text-slate-900">${s.mahasiswaName}</td>
+                    <td class="px-5 py-4 font-mono text-slate-600">${s.mahasiswaNim} • ${s.mahasiswaJurusan || '-'}</td>
+                    <td class="px-5 py-4">
+                      <span class="px-2.5 py-1 rounded-full text-[11px] font-bold ${
+                        s.peran === 'Pembimbing 1' ? 'bg-cyan-100 text-cyan-800 border border-cyan-200' : 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                      }">
+                        ${s.peran}
+                      </span>
+                    </td>
+                    <td class="px-5 py-4 max-w-sm text-slate-700 font-medium leading-relaxed">
+                      "${s.judul_skripsi || 'Judul belum didaftarkan'}"
+                    </td>
+                    <td class="px-5 py-4">
+                      <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full text-[10px] font-bold uppercase">${s.status}</span>
+                    </td>
+                    <td class="px-5 py-4 text-right">
+                      ${s.mahasiswaPhone ? `
+                        <a href="https://wa.me/${s.mahasiswaPhone.replace(/[^0-9]/g, '')}" target="_blank" class="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold rounded-lg border border-emerald-200 inline-flex items-center gap-1 text-[11px] transition">
+                          WhatsApp
+                        </a>
+                      ` : '<span class="text-slate-400 text-[11px]">-</span>'}
+                    </td>
+                  </tr>
+                `).join('') : `
+                  <tr><td colspan="6" class="text-center py-8 text-xs text-slate-400">Belum ada mahasiswa bimbingan yang ditugaskan ke Anda.</td></tr>
+                `}
               </tbody>
             </table>
           </div>
         </div>
 
-        <!-- Full History of Supervised Students -->
+        <!-- Section 2: Jadwal Sidang (Sebagai Penguji) -->
         <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="p-6 border-b border-slate-100">
-            <h3 class="text-base font-bold text-slate-900">Semua Peminjaman di Bawah Bimbingan Anda</h3>
-            <p class="text-xs text-slate-500 mt-0.5">Pantau seluruh riwayat penggunaan laboratorium oleh mahasiswa tugas akhir / praktikum Anda.</p>
+          <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Jadwal Sidang & Ujian (Sebagai Dewan Penguji)</h3>
+              <p class="text-xs text-slate-500">Daftar agenda sidang skripsi mahasiswa yang harus Anda uji</p>
+            </div>
+            <span class="text-xs font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-full">${myExamsAsExaminer.length} Agenda</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
+                  <th class="px-5 py-3.5">Jenis Sidang</th>
+                  <th class="px-5 py-3.5">Mahasiswa Teruji</th>
+                  <th class="px-5 py-3.5">Waktu & Tanggal</th>
+                  <th class="px-5 py-3.5">Ruangan Lab</th>
+                  <th class="px-5 py-3.5">Dewan Penguji</th>
+                  <th class="px-5 py-3.5">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${myExamsAsExaminer.length > 0 ? myExamsAsExaminer.map(ex => `
+                  <tr class="hover:bg-slate-50 text-xs border-b border-slate-100">
+                    <td class="px-5 py-4 font-bold text-indigo-900">${ex.jenisLabel}</td>
+                    <td class="px-5 py-4">
+                      <div class="font-bold text-slate-900">${ex.mahasiswaName}</div>
+                      <div class="text-[11px] font-mono text-slate-500">${ex.mahasiswaNim}</div>
+                    </td>
+                    <td class="px-5 py-4 text-slate-700">
+                      <div class="font-semibold">${ex.tanggalFormatted || ex.tanggal}</div>
+                      <div class="text-[11px] text-slate-500">${ex.jamMulai} - ${ex.jamSelesai} WIB</div>
+                    </td>
+                    <td class="px-5 py-4 font-bold text-sky-700">${ex.ruangan}</td>
+                    <td class="px-5 py-4">
+                      <div class="space-y-1">
+                        ${ex.penguji.map(p => `
+                          <div class="text-[11px] ${p.dosenName === user.name ? 'font-bold text-indigo-700' : 'text-slate-600'}">
+                            • ${p.dosenName} ${p.dosenName === user.name ? '(Anda)' : ''}
+                          </div>
+                        `).join('')}
+                      </div>
+                    </td>
+                    <td class="px-5 py-4">
+                      <span class="px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                        ex.status === 'mendatang' ? 'bg-amber-100 text-amber-800' :
+                        ex.status === 'selesai' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                      }">
+                        ${ex.status}
+                      </span>
+                    </td>
+                  </tr>
+                `).join('') : `
+                  <tr><td colspan="6" class="text-center py-8 text-xs text-slate-400">Tidak ada agenda pengujian sidang untuk Anda saat ini.</td></tr>
+                `}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Section 3: Validasi Rekomendasi Peminjaman Lab (Original) -->
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="p-6 border-b border-slate-100 flex items-center justify-between">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Validasi Pengajuan Peminjaman Lab Mahasiswa</h3>
+              <p class="text-xs text-slate-500">Berikan rekomendasi persetujuan untuk pengajuan lab oleh mahasiswa</p>
+            </div>
+            <span class="text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1 rounded-full">${pendingForMe.length} Menunggu</span>
           </div>
 
           <div class="overflow-x-auto">
@@ -184,14 +213,44 @@ const DosenDashboard = {
                 <tr class="bg-slate-50 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-100">
                   <th class="px-4 py-3">No. Booking</th>
                   <th class="px-4 py-3">Mahasiswa</th>
-                  <th class="px-4 py-3">Laboratorium</th>
-                  <th class="px-4 py-3">Tanggal</th>
+                  <th class="px-4 py-3">Lab & Jadwal</th>
+                  <th class="px-4 py-3">Keperluan</th>
                   <th class="px-4 py-3">Status</th>
                   <th class="px-4 py-3 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody>
-                ${allMyStudentsRows}
+                ${pendingForMe.length > 0 ? pendingForMe.map(b => `
+                  <tr class="hover:bg-slate-50/80 transition text-xs border-b border-slate-100">
+                    <td class="px-4 py-3.5 font-mono font-bold text-sky-700">${b.bookingCode || b.id}</td>
+                    <td class="px-4 py-3.5">
+                      <div class="font-bold text-slate-900">${b.userName}</div>
+                      <div class="text-[11px] text-slate-500 font-mono">${b.userNim} • ${b.userJurusan || ''}</div>
+                    </td>
+                    <td class="px-4 py-3.5">
+                      <div class="font-semibold text-slate-800">${b.labName}</div>
+                      <div class="text-[11px] text-slate-500">${b.date} • ${b.timeSlot}</div>
+                    </td>
+                    <td class="px-4 py-3.5 max-w-xs text-slate-600 truncate" title="${b.purpose}">
+                      ${b.purpose}
+                    </td>
+                    <td class="px-4 py-3.5">
+                      <span class="px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full text-[10px] font-bold">Menunggu Anda</span>
+                    </td>
+                    <td class="px-4 py-3.5 text-right">
+                      <div class="flex items-center justify-end gap-1.5">
+                        <button onclick="DosenDashboard.approveStudentBooking('${b.id}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition shadow-2xs flex items-center gap-1">
+                          Setujui
+                        </button>
+                        <button onclick="DosenDashboard.rejectStudentBooking('${b.id}')" class="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-lg transition">
+                          Tolak
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                `).join('') : `
+                  <tr><td colspan="6" class="text-center py-6 text-xs text-slate-400">Semua pengajuan bimbingan telah divalidasi.</td></tr>
+                `}
               </tbody>
             </table>
           </div>
@@ -201,29 +260,25 @@ const DosenDashboard = {
     `;
   },
 
-  async approveStudentBooking(id) {
-    const notes = prompt('Catatan persetujuan dosen pembimbing (opsional):', 'Disetujui pembimbing. Topik riset telah sesuai rencana skripsi.');
-    if (notes === null) return;
-
+  async approveStudentBooking(bookingId) {
     try {
-      const res = await Api.bookings.updateStatus(id, 'approve_dosen', notes);
-      Toast.success(res.message || 'Peminjaman disetujui dosen!');
-      App.refreshCurrentView();
+      await Api.bookings.updateStatus(bookingId, 'approve_dosen', 'Disetujui oleh dosen pembimbing.');
+      Toast.success('Rekomendasi berhasil diberikan! Pengajuan diteruskan ke Admin Laboran.');
+      App.handleRouting();
     } catch (err) {
-      Toast.error(err.message || 'Gagal memproses validasi dosen');
+      Toast.error(err.message || 'Gagal menyetujui pengajuan.');
     }
   },
 
-  async rejectStudentBooking(id) {
-    const notes = prompt('Alasan penolakan bimbingan:', 'Proposal riset belum lengkap, silakan konsultasi terlebih dahulu.');
-    if (notes === null) return;
-
+  async rejectStudentBooking(bookingId) {
+    const reason = prompt('Masukkan alasan penolakan pengajuan lab ini:');
+    if (reason === null) return;
     try {
-      const res = await Api.bookings.updateStatus(id, 'reject_dosen', notes);
-      Toast.warning(res.message || 'Peminjaman ditolak dosen.');
-      App.refreshCurrentView();
+      await Api.bookings.updateStatus(bookingId, 'reject_dosen', reason || 'Ditolak oleh dosen pembimbing.');
+      Toast.info('Pengajuan peminjaman ditolak.');
+      App.handleRouting();
     } catch (err) {
-      Toast.error(err.message || 'Gagal menolak peminjaman');
+      Toast.error(err.message || 'Gagal menolak pengajuan.');
     }
   }
 };

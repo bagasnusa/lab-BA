@@ -189,7 +189,83 @@ const Api = {
     async resetDb() {
       return await Api.request('/stats/reset', { method: 'POST' });
     }
+  },
+
+  // Thesis / Skripsi Endpoints
+  thesis: {
+    async getStudents() {
+      return await Api.request('/thesis/students');
+    },
+
+    async getLecturers() {
+      return await Api.request('/thesis/lecturers');
+    },
+
+    async getMySupervisor() {
+      return await Api.request('/thesis/my-supervisor');
+    },
+
+    async getMyExam() {
+      return await Api.request('/thesis/my-exam');
+    },
+
+    async getMySupervision() {
+      return await Api.request('/thesis/my-supervision');
+    },
+
+    async getMyExamsAsExaminer() {
+      return await Api.request('/thesis/my-exams-as-examiner');
+    },
+
+    async getAllSupervisors() {
+      return await Api.request('/thesis/supervisors');
+    },
+
+    async createSupervisor(data) {
+      return await Api.request('/thesis/supervisors', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+
+    async updateSupervisor(id, data) {
+      return await Api.request(`/thesis/supervisors/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    },
+
+    async deleteSupervisor(id) {
+      return await Api.request(`/thesis/supervisors/${id}`, {
+        method: 'DELETE'
+      });
+    },
+
+    async getAllExams() {
+      return await Api.request('/thesis/exams');
+    },
+
+    async createExam(data) {
+      return await Api.request('/thesis/exams', {
+        method: 'POST',
+        body: JSON.stringify(data)
+      });
+    },
+
+    async updateExam(id, data) {
+      return await Api.request(`/thesis/exams/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      });
+    },
+
+    async deleteExam(id) {
+      return await Api.request(`/thesis/exams/${id}`, {
+        method: 'DELETE'
+      });
+    }
   }
 };
 
 window.Api = Api;
+
